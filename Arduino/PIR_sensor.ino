@@ -1,3 +1,5 @@
+const int gas_input = A0;
+int gas = 0;
 int speaker = 3;
 int ledPin = 6;
 int inputPin = 8;               
@@ -16,10 +18,13 @@ void loop(){
 //tone(speaker, 500);
 // HIGH -> THE WAY THAT ARDUINO DISCRIBE STATE ON
 val = digitalRead(inputPin);
-  if(val == HIGH){
+  if(val == HIGH || gas > 85){
     digitalWrite(ledPin, HIGH);
     digitalWrite(speaker, HIGH);
-    Serial.println(val);
+    Serial.print("this is PIR and Gas: ");
+    Serial.print(val);
+    Serial.print(", ");
+    Serial.println(gas);
     delay(500);
   }else{
    digitalWrite(ledPin, LOW);
