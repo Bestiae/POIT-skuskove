@@ -1,8 +1,8 @@
+import serial.tools.list_ports
 from threading import Lock
 from flask import Flask, render_template, session, request, jsonify, url_for
 from flask_socketio import SocketIO, emit, disconnect  
 import time
-import random
 import math
 
 async_mode = None
@@ -13,6 +13,48 @@ app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, async_mode=async_mode)
 thread = None
 thread_lock = Lock() 
+
+def serial_port_read(args):
+    ports = serial.tools.list_ports.comports()
+    serialInst = serial.Serial()
+
+    portList = []
+
+    for onePort in ports:
+        portList.append(str(onePort))
+        #print(str(onePort))
+
+    #val = input("select port: ")
+    val = "/dev/cu.usbserial-A50285BI"
+
+    for x in range(0, len(portList)):
+        if portList[x].startswith(str(val)):
+            portVar = str(val)
+            print(portList[x])
+
+    serialInst.baudrate = 9600
+    serialInst.port = portVar
+    serialInst.open()
+
+    dataList = []
+    while True:
+        if serialInst.in_waiting:
+            packet = serialInst.readline()
+            print(packet.decode('utf'))
+            print(args)
+            socketio.sleep(2)
+            count = packet.decode('utf')
+            premS = math.sin(int(count))
+            premC = 3 * math.cos(int(count))
+            dataDict = {
+                "t": time.time(),
+                "x": count,
+                "y": premS,
+                "z": premC}
+            dataList.append(dataDict)
+            socketio.emit('my_response',
+                          {'dataSin': premS, 'dataCos': premC, 'count': count},
+                          namespace='/test')
 
 
 def background_thread(args):
@@ -27,7 +69,6 @@ def background_thread(args):
           A = 1
           btnV = 'null' 
           sliderV = 0 
-        #print(A)
         print(args)  
         socketio.sleep(2)
         count += 1
@@ -39,9 +80,6 @@ def background_thread(args):
           "y": float(A)*premS,
           "z": float(A)*premC}
         dataList.append(dataDict)
-        #if len(dataList)>0:
-        #  print(str(dataList))
-        #  print(str(dataList).replace("'", "\""))
         socketio.emit('my_response',
                       {'dataSin': float(A)*premS, 'dataCos': float(A)*premC, 'count': count},
                       namespace='/test')  
@@ -73,7 +111,8 @@ def test_connect():
     global thread
     with thread_lock:
         if thread is None:
-            thread = socketio.start_background_task(target=background_thread, args=session._get_current_object())
+            # thread = socketio.start_background_task(target=background_thread, args=session._get_current_object())
+            thread = socketio.start_background_task(target=serial_port_read, args=session._get_current_object())
 #    emit('my_response', {'data': 'Connected', 'count': 0})
 
 @socketio.on('click_event', namespace='/test')
